@@ -1,17 +1,16 @@
 """
-Given a list of classes and a start date (if the given date isn't a Monday,
-confirm that with the user before continuing), produce a tab-delimited list of
-(date, title) tuples, where the date increments the available days of the week,
-repeating as needed until the final title has been used.
+Given a list of classes and a start date, produce a tab-delimited list of
+(date, title) tuples, where the date are among the available days of the week,
+repeating as needed until the last title has been used.
 
-Given a list of dates on which class will not be held, skip those days while
+Given a list of dates on which classes will not be held, skip those days while
 scheduling, and resume with the next available day of class.
 
 The output format is tab-delimited, with two tabs between each tuple.
 I.e., yyyy/mm/d1\tTitle 1\t\tyyyy/mm/d2\tTitle 2\t\tyyyy/mm/d3\tTitle 3
                 ^^       ^^^^          ^^       ^^^^          ^^
 The extra tab makes my copy-pasting into the destination spreadsheet easier.
-I suppose the output format could/should be configurable.
+The output format might be configurable in the future.
 
 NB: I'm using some Python 2 syntax because the server I currently use this on
 doesn't yet have Python 3, and I don't have 'pip install' permission.
@@ -30,50 +29,25 @@ except:
 WEEKDAY_ABBREVS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
-# Class titles, in order
-def get_classes():
-  """
-  @TODO: Make classes data-driven: database, ini file, input file, spreadsheet, whatever.
-  Having hard-coded classes is just wrong.
-  """
-  return """
-  Primer 1
-  Primer 2
-  Primer 3
-  Primer 4
-  Graphics 1
-  Graphics 2
-  HTML 1
-  HTML 2
-  CSS 1
-  CSS 2
-  CSS 3
-  CSS 4
-  Bootstrap 1
-  Bootstrap 2
-  JavaScript 1
-  JavaScript 2
-  JavaScript 3
-  JavaScript 4
-  JavaScript 5
-  JavaScript 6
-  JavaScript 7
-  JavaScript 8
-  MySQL 1
-  MySQL 2
-  PHP 1
-  PHP 2
-  PHP 3
-  PHP 4
-  Capstone 1
-  PHP 5
-  PHP 6
-  Linux/Unix 1
-  Linux/Unix 2
-  Capstone 2
-  Capstone 3
-  Graduation
-  """.strip().splitlines()
+# Used in argument parsing to confirm the class file exists.
+def class_file(s):
+  import os
+  if not os.path.exists(s):
+    raise argparse.ArgumentTypeError("File not found: %s" % s)
+  return s
+
+
+# The class file is expected to be class names, listed one per line.
+# This function removes leading and trailing whitespace,
+# and ignores lines that start with a semicolon or open bracket.
+# Blank lines are also ignored.
+def read_classes(s):
+  with open(s) as f:
+    return [
+      i.strip()
+      for i in f.readlines()
+      if not i.strip()[:1] in [';', '[', '']
+    ]
 
 
 def next_available_date(start_date, class_days=None, unavailable_dates=None):
@@ -135,14 +109,16 @@ def weekday_abbrev(s):
 
 def main():
   import sys
-  classes = get_classes()
   parser = argparse.ArgumentParser(prog=sys.argv[0])
+  parser.add_argument("class_file", type=class_file, help="""
+    Specify a file that includes the class names, listed one per line.
+    """)
   parser.add_argument("start_date", type=flexidate, help="""
     This is the day that %s is taught, and can be in any of
     these formats: yyyy/mm/dd, mm/dd/yyyy or mm/dd.
     The separator is any non-digit; i.e., it doesn't have to be a "/".
     The 2-part date assumes the current year for the yyyy value.
-    """ % (classes and classes[0] or "the first class"))
+    """ % ("the first class",))
   parser.add_argument("class_days", metavar="class_days",
     type=weekday_abbrev, action="append", help="""
     Valid weekday names are %s. Separate names by commas (no spaces or dashes).
@@ -155,9 +131,10 @@ def main():
     formats as the start date.
     """)
   args = vars(parser.parse_args(sys.argv[1:]))
+  classes = read_classes(args['class_file'])
   schedule = list(zip(classes, next_available_date(args['start_date'], args['class_days'][0], args['unavailable_dates'])))
-  # I'll use the old style of string interpolation until Python 3 is installed.
-  tdf = '\t\t'.join(['%s-%s-%s\t%s' % (d.year, d.month, d.day, t) for t, d in schedule])
+  # I'll use the old % style of string interpolation until Python 3 is installed.
+  tdf = '\t\t'.join(['%04d/%02d/%02d\t%s' % (d.year, d.month, d.day, t) for t, d in schedule])
   print(tdf)
 
 
