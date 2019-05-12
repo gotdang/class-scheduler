@@ -17,6 +17,7 @@ NB: I'm using some Python 2 syntax because the server I currently use this on
 doesn't yet have Python 3, and I don't have 'pip install' permission.
 """
 
+import argparse
 import calendar
 import datetime
 try:
@@ -26,7 +27,7 @@ except:
     @staticmethod
     def debug(arg): pass
 
-VALID_SCHEDULE_TYPES = ["mon-thu", "mon,wed", "tue,thu"]
+WEEKDAY_ABBREVS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 # Class titles, in order
@@ -75,30 +76,20 @@ def get_classes():
   """.strip().splitlines()
 
 
-def next_available_date(start_date, schedule_type=None, unavailable_dates = None):
+def next_available_date(start_date, class_days=None, unavailable_dates=None):
   """This returns a generator of dates, starting with the specified date, and continuing with the next available date."""
-  """@TODO: When given a list of unavailable dates, skip them, and continue with the next available date."""
   one_day = datetime.timedelta(days=1)
   year, month, day = start_date
   doy = datetime.date(year, month, day)
-  schedule_type = schedule_type.lower()
-  if schedule_type == 'mon-thu':
-    in_class_days = [calendar.MONDAY, calendar.TUESDAY, calendar.WEDNESDAY, calendar.THURSDAY]
-  elif schedule_type == 'mon,wed':
-    in_class_days = [calendar.MONDAY, calendar.WEDNESDAY]
-  elif schedule_type == 'tue,thu':
-    in_class_days = [calendar.TUESDAY, calendar.THURSDAY]
-  else:
-    raise ValueError("Valid schedule types are [%s]." % (', '.join(VALID_SCHEDULE_TYPES),))
+  logger.debug('Class days: %s' % (class_days,))
   logger.debug('Unavailable dates: %s' % (unavailable_dates,))
-  logger.debug('In-class days: %s' % (in_class_days,))
   while True:
     logger.debug('Available: %s (%d)' % (doy, doy.weekday()))
     yield doy
-    doy = doy + one_day
-    while doy.weekday() not in in_class_days or unavailable_dates and (doy.year, doy.month, doy.day) in unavailable_dates:
+    doy += one_day
+    while doy.weekday() not in class_days or unavailable_dates and (doy.year, doy.month, doy.day) in unavailable_dates:
       logger.debug("Unavailable: %d/%d/%d" % (doy.year, doy.month, doy.day))
-      doy = doy + one_day
+      doy += one_day
 
 
 def flexidate(value):
@@ -113,21 +104,36 @@ def flexidate(value):
   """
   # @TODO: Change the format parsing to match the user's locale. E.g., if in England, dd/mm[/yyyy] instead of mm/dd[/yyyy].
   import re
-  if len(value) < 5:
+  if len(value) < 3:
     raise ValueError("Invalid date format. Acceptable forms are yyyy/mm/dd, mm/dd/yyyy and mm/dd.")
-  m = re.match(r"(\d{4})\D(\d{2})\D(\d{2})", value)
+  m = re.match(r"(\d{4})\D(\d{1,2})\D(\d{1,2})", value)
   if m and m.group(3):
     return int(m.group(1)), int(m.group(2)), int(m.group(3))
   # I append the current year, so that a two-part date is converted to a 3-part date,
   # The regex ignores the possibly redundant separator and year.
-  m = re.match(r"(\d{2})\D(\d{2})\D(\d{4})", '%s/%d' % (value, datetime.date.today().year))
+  m = re.match(r"(\d{1,2})\D(\d{1,2})\D(\d{4})", '%s/%d' % (value, datetime.date.today().year))
   if m and m.group(3):
     return int(m.group(3)), int(m.group(1)), int(m.group(2))
   raise ValueError("Invalid date format. Acceptable forms are yyyy/mm/dd, mm/dd/yyyy and mm/dd.")
 
 
+def weekday_abbrev(s):
+  s = s.lower().split(',')
+  class_days = []
+  for i in set(s):
+    if i == 'mon': class_days.append(calendar.MONDAY)
+    elif i == 'tue': class_days.append(calendar.TUESDAY)
+    elif i == 'wed': class_days.append(calendar.WEDNESDAY)
+    elif i == 'thu': class_days.append(calendar.THURSDAY)
+    elif i == 'fri': class_days.append(calendar.FRIDAY)
+    elif i == 'sat': class_days.append(calendar.SATURDAY)
+    elif i == 'sun': class_days.append(calendar.SUNDAY)
+    else:
+      raise argparse.ArgumentTypeError("Valid days are [%s]." % (', '.join(WEEKDAY_ABBREVS),))
+  return class_days
+
+
 def main():
-  import argparse
   import sys
   classes = get_classes()
   parser = argparse.ArgumentParser(prog=sys.argv[0])
@@ -136,13 +142,12 @@ def main():
     these formats: yyyy/mm/dd, mm/dd/yyyy or mm/dd.
     The separator is any non-digit; i.e., it doesn't have to be a "/".
     The 2-part date assumes the current year for the yyyy value.
-    """ % classes[0])
-  parser.add_argument("schedule_type", metavar="schedule_type",
-    choices=VALID_SCHEDULE_TYPES, type=str.lower, help="""
-    The currently-supported schedule types are 'mon-thu' (a 4-times
-    per week class), 'mon,wed' (a twice weekly class on Monday and Wednesday),
-    or 'tue-thu' (a twice weekly class on Tuesday and Thursday).
-    """)
+    """ % (classes and classes[0] or "the first class"))
+  parser.add_argument("class_days", metavar="class_days",
+    type=weekday_abbrev, action="append", help="""
+    Valid weekday names are %s. Separate names by commas (no spaces or dashes).
+    Duplicates are ignored. Order doesn't matter. E.g., mon,tue,wed
+    """ % str(WEEKDAY_ABBREVS))
   parser.add_argument("unavailable_dates", metavar="unavailable_dates",
   type=flexidate, nargs='*', help="""
     Any dates that shouldn't be scheduled, such as known holidays.
@@ -150,7 +155,7 @@ def main():
     formats as the start date.
     """)
   args = vars(parser.parse_args(sys.argv[1:]))
-  schedule = list(zip(classes, next_available_date(args['start_date'], args['schedule_type'], args['unavailable_dates'])))
+  schedule = list(zip(classes, next_available_date(args['start_date'], args['class_days'][0], args['unavailable_dates'])))
   # I'll use the old style of string interpolation until Python 3 is installed.
   tdf = '\t\t'.join(['%s-%s-%s\t%s' % (d.year, d.month, d.day, t) for t, d in schedule])
   print(tdf)
