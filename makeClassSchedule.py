@@ -19,12 +19,6 @@ doesn't yet have Python 3, and I don't have 'pip install' permission.
 import argparse
 import calendar
 import datetime
-try:
-  from loguru import logger
-except:
-  class logger(object):
-    @staticmethod
-    def debug(arg): pass
 
 WEEKDAY_ABBREVS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
@@ -54,15 +48,14 @@ def next_available_date(start_date, class_days=None, unavailable_dates=None):
   """This returns a generator of dates, starting with the specified date, and continuing with the next available date."""
   one_day = datetime.timedelta(days=1)
   year, month, day = start_date
-  doy = datetime.date(year, month, day)
-  logger.debug('Class days: %s' % (class_days,))
-  logger.debug('Unavailable dates: %s' % (unavailable_dates,))
+  # @TODO Make start time (and class length) configurable.
+  # For now... when there are <4 class days per week, start time is 18:30, else 09:30.
+  start_hour = 9 if len(class_days) > 3 else 18
+  doy = datetime.datetime.combine(datetime.date(year, month, day), datetime.time(start_hour, 30))
   while True:
-    logger.debug('Available: %s (%d)' % (doy, doy.weekday()))
     yield doy
     doy += one_day
     while doy.weekday() not in class_days or unavailable_dates and (doy.year, doy.month, doy.day) in unavailable_dates:
-      logger.debug("Unavailable: %d/%d/%d" % (doy.year, doy.month, doy.day))
       doy += one_day
 
 
@@ -107,6 +100,58 @@ def weekday_abbrev(s):
   return class_days
 
 
+def generate_ical(schedule):
+  import uuid
+  CRLF = "\x0d\x0a"
+  cal_header = CRLF.join([
+      "BEGIN:VCALENDAR"
+    , "PRODID:-//PBCS.US//dangCal//EN"
+    , "VERSION:2.0"
+    , "CALSCALE:GREGORIAN"
+    , "METHOD:PUBLISH"
+    # @TODO: Make calendar name configurable.
+    , "X-WR-CALNAME:%s" % ("PBCS Teaching Schedule",)
+    , "X-WR-TIMEZONE:America/New_York"
+    , "PREFERRED_LANGUAGE:EN"
+    , "BEGIN:VTIMEZONE"
+    , "TZID:US-Eastern"
+    , "LAST-MODIFIED:19870101T000000Z"
+    , "TZURL:http://zones.stds_r_us.net/tz/US-Eastern"
+    , "BEGIN:STANDARD"
+    , "DTSTART:19671029T020000"
+    , "RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10"
+    , "TZOFFSETFROM:-0400"
+    , "TZOFFSETTO:-0500"
+    , "TZNAME:EST"
+    , "END:STANDARD"
+    , "BEGIN:DAYLIGHT"
+    , "DTSTART:19870405T020000"
+    , "RRULE:FREQ=YEARLY;BYDAY=1SU;BYMONTH=4"
+    , "TZOFFSETFROM:-0500"
+    , "TZOFFSETTO:-0400"
+    , "TZNAME:EDT"
+    , "END:DAYLIGHT"
+    , "END:VTIMEZONE"
+    ])
+  cal_footer = """END:VCALENDAR"""
+  # @TODO: Make class length configurable.
+  class_length = datetime.timedelta(hours=3, minutes=30)
+  cal_body = [CRLF.join((
+      "BEGIN:VEVENT"
+    # , "UID:%s" % (uuid.uuid4(),)
+    # @TODO Make summary prefix configurable.
+    , "SUMMARY: %s" % ("PP01 " + t,)
+    # @TODO: Make location optional/configurable.
+    , "LOCATION:%s" % ("9050 Pines Blvd, Pembroke Pines, FL 33025, USA",)
+    , "DTSTART:%s" % ("%04d%02d%02dT%02d%02d00" % ((d).year, (d).month, (d).day, (d).hour, (d).minute),)
+    , "DTEND:%s" % ("%04d%02d%02dT%02d%02d00" % ((d+class_length).year, (d+class_length).month, (d+class_length).day, (d+class_length).hour, (d+class_length).minute),)
+    , "TRANSP:OPAQUE"
+    , "END:VEVENT"))
+    for seq, (t, d) in enumerate(schedule)
+  ]
+  return CRLF.join([cal_header, CRLF.join(cal_body), cal_footer])
+
+
 def main():
   import sys
   parser = argparse.ArgumentParser(prog=sys.argv[0])
@@ -130,12 +175,23 @@ def main():
     You can supply any number of unavailable dates, using the same date
     formats as the start date.
     """)
+  parser.add_argument("--ical", action="store_true", help="""
+    Specifying this optional parameter will cause the program to produce
+    an iCalendar/vCalendar-formatted output, which can be imported
+    into mose calendar programs.
+  """)
+  parser.add_argument("--tdf", action="store_true", default=False, help="""
+    Specifying this optional parameter will cause the program to produce
+    tab-delimited output, with 2 tabs between each date+title pair.
+  """)
   args = vars(parser.parse_args(sys.argv[1:]))
   classes = read_classes(args['class_file'])
   schedule = list(zip(classes, next_available_date(args['start_date'], args['class_days'][0], args['unavailable_dates'])))
-  # I'll use the old % style of string interpolation until Python 3 is installed.
-  tdf = '\t\t'.join(['%04d/%02d/%02d\t%s' % (d.year, d.month, d.day, t) for t, d in schedule])
-  print(tdf)
+  if args['tdf']:
+    tdf = '\t\t'.join(['%04d/%02d/%02d\t%s' % (d.year, d.month, d.day, t) for t, d in schedule])
+    print(tdf)
+  if args['ical']:
+    print(generate_ical(schedule))
 
 
 if __name__ == "__main__":
