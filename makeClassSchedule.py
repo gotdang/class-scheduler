@@ -1,3 +1,5 @@
+#!/usr/local/python3/bin/python3
+
 """
 Given a list of classes and a start date, produce a tab-delimited list of
 (date, title) tuples, where the date are among the available days of the week,
@@ -19,6 +21,10 @@ doesn't yet have Python 3, and I don't have 'pip install' permission.
 import argparse
 import calendar
 import datetime
+
+import cgitb
+cgitb.enable()
+print("Content-Type: text/html;charset=utf-8\n")
 
 WEEKDAY_ABBREVS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
@@ -153,6 +159,9 @@ def generate_ical(schedule):
 
 def main():
   import sys
+  import cgi
+  form = cgi.FieldStorage()
+  print(str(form)+'<br>\n')
   parser = argparse.ArgumentParser(prog=sys.argv[0])
   parser.add_argument("class_file", type=class_file, help="""
     Specify a file that includes the class names, listed one per line.
@@ -174,16 +183,14 @@ def main():
     You can supply any number of unavailable dates, using the same date
     formats as the start date.
     """)
-  parser.add_argument("--ical", action="store_true", help="""
-    Specifying this optional parameter will cause the program to produce
-    an iCalendar/vCalendar-formatted output, which can be imported
-    into mose calendar programs.
-  """)
-  parser.add_argument("--tdf", action="store_true", default=False, help="""
-    Specifying this optional parameter will cause the program to produce
-    tab-delimited output, with 2 tabs between each date+title pair.
+  parser.add_argument("output", choices=["ical","tdf"], help="""
+    This parameter specifies which output to produce:
+    'ical' to get iCalendar/vCalendar-formatted output, which can be
+    imported into most calendar programs; or, 'tdf' to get tab-delimited
+    output, with 2 tabs between each date+title pair.
   """)
   args = vars(parser.parse_args(sys.argv[1:]))
+  print("<!doctype html><html><head><title>BORK!</title></head><body>%s</body></html>" % ",".join(args))
   classes = read_classes(args['class_file'])
   schedule = list(zip(classes, next_available_date(args['start_date'], args['class_days'][0], args['unavailable_dates'])))
   if args['tdf']:
