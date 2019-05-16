@@ -101,7 +101,6 @@ def weekday_abbrev(s):
 
 
 def generate_ical(schedule):
-  import uuid
   CRLF = "\x0d\x0a"
   cal_header = CRLF.join([
       "BEGIN:VCALENDAR"
