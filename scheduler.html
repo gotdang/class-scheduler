@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>gotDang Class Scheduler</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+    integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <link rel="stylesheet" href="gdcs2.css">
+</head>
+
+<body>
+  <header>
+    <h1>@gotDang Class Scheduler</h1>
+    <h4>Enter your class details, and I will poop out a calendar!</h4>
+  </header>
+
+  <main>
+    <form action="#" method="GET">
+
+      <div id="start-date-div">
+        <input type="date" name="start-date" id="start-date" required>
+        <label for="start-date" id="start-date-weekday"></label>
+      </div>
+      <label class="label-aligned-right left-of-input" for="start-date">Start date:</label>
+
+      <div id="class-names-div">
+        <label for="class-names-list">Class games</label>
+        <textarea name="class-names-list" id="class-names-list"
+          placeholder="Enter class names, one per line"></textarea>
+        <button id="class-names-import-button">Import...</button>
+        <input type="file" id="class-names-file">
+      </div>
+
+      <label class="label-aligned-right left-of-input">Class days:</label>
+      <div id="class-days-checkboxes">
+        <input type="checkbox" id="monday-class" name="monday-class">
+        <label for="monday-class">&nbsp;Monday</label>
+        <input type="checkbox" id="tuesday-class" name="tuesday-class">
+        <label for="tuesday-class">&nbsp;Tuesday</label>
+        <input type="checkbox" id="wednesday-class" name="wednesday-class">
+        <label for="wednesday-class">&nbsp;Wednesday</label>
+        <input type="checkbox" id="thursday-class" name="thursday-class">
+        <label for="thursday-class">&nbsp;Thursday</label>
+        <input type="checkbox" id="friday-class" name="friday-class">
+        <label for="friday-class">&nbsp;Friday</label>
+        <input type="checkbox" id="saturday-class" name="saturday-class">
+        <label for="saturday-class">&nbsp;Saturday</label>
+        <input type="checkbox" id="sunday-class" name="sunday-class">
+        <label for="sunday-class">&nbsp;Sunday</label>
+      </div>
+
+      <div id="unavailable-dates">
+        <input type="date" name="ud00" id="ud00" class="unavailable-date">
+        <input type="date" name="ud01" id="ud01" class="unavailable-date">
+        <input type="date" name="ud02" id="ud02" class="unavailable-date">
+        <input type="date" name="ud03" id="ud03" class="unavailable-date">
+        <input type="date" name="ud04" id="ud04" class="unavailable-date">
+        <input type="date" name="ud05" id="ud05" class="unavailable-date">
+        <input type="date" name="ud06" id="ud06" class="unavailable-date">
+        <input type="date" name="ud07" id="ud07" class="unavailable-date">
+      </div>
+      <label class="label-aligned-right left-of-input" for="ud00">Unavailable dates:</label>
+
+      <label class="label-aligned-right left-of-input" for="session-time">Start time:</label>
+      <input type="time" name="session-time" id="session-time">
+
+      <label for="class-duration" class="label-aligned-right left-of-input">Duration:</label>
+      <div id="class-duration-div">
+        <input type="number" name="class-duration" id="class-duration" min="0.5" step="0.5" max="16">
+        <label for="class-duration">hours</label>
+      </div>
+
+      <label class="label-aligned-right left-of-input" id="output-format-label">Output formats:</label>
+      <div id="output-format">
+        <span>
+          <input type="checkbox" name="output-ical" id="output-ical">
+          <label for="output-ical">iCal/vCal</label>
+        </span>
+        <span>
+          <input type="checkbox" name="output-tab-delimited" id="output-tab-delimited">
+          <label for="output-tab-delimited">Tab-delimited</label>
+        </span>
+      </div>
+
+      <input type="submit" id="submit" value="Poops!">
+
+    </form>
+  </main>
+  <script src="gdcs.js"></script>
+</body>
+
+</html>
