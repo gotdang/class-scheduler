@@ -38,9 +38,8 @@ def class_file(s):
 def read_classes(s):
   with open(s) as f:
     return [
-      i.strip()
-      for i in f.readlines()
-      if not i.strip()[:1] in [';', '[', '']
+        i.strip() for i in f.readlines()
+        if i.strip()[:1] not in [';', '[', '']
     ]
 
 
